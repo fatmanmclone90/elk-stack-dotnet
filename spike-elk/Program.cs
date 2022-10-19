@@ -1,5 +1,6 @@
 ﻿using Elasticsearch.Net;
 using Nest;
+using static System.Net.Mime.MediaTypeNames;
 
 var client = new ElasticClient(new Uri("http://localhost:9200/"));
 
@@ -21,18 +22,59 @@ var createTemplate = await PutDataStreamTemplate(
     tryUpdate: true);
 Console.WriteLine(createTemplate);
 
+var code = $"some code -:+ {DateTime.UtcNow:yyyymmddHHMM}";
 var writeData = await WritenDataStream(
     client,
     dataStreamName,
     new MyDocument
     {
-        Code = $"some code - {DateTime.UtcNow:u}",
+        Code = code,
         PartialCode = $"foobar - {DateTime.UtcNow:u}",
         SortOrder = new Random().Next(0, 1000),
         Timestamp = DateTime.UtcNow,
     });
 
 Console.WriteLine(writeData);
+
+var searchData = await GetData(client, dataStreamName, "code", code);
+
+Console.WriteLine(searchData);
+
+static async Task<IEnumerable<MyDocument>> GetData(
+    ElasticClient client,
+    string dataStream,
+    string property,
+    string value)
+{
+    var retryCount = 3;
+    var counter = 0;
+    var documents = new List<MyDocument>();
+    while (counter < retryCount)
+    {
+        var searchResponse = await client.LowLevel.SearchAsync<SearchResponse<MyDocument>>(
+            dataStream,
+            PostData.Serializable(new
+            {
+                query = new
+                {
+                    match_phrase = new Dictionary<string, string>
+                    {
+                    { property, value }
+                    }
+                }
+            }));
+
+        if (searchResponse.Documents.Count > 0)
+        {
+            documents = searchResponse.Documents.ToList();
+            break;
+        }
+        await Task.Delay(1000);
+        counter++;
+    }
+
+    return documents;
+}
 
 static async Task<StringResponse> PutDataStreamTemplate(
     ElasticClient client,
@@ -129,7 +171,7 @@ static async Task<StringResponse> CreateLifeCycle(
     else
     {
         return lifeCycleExists;
-    }    
+    }
 }
 
 static async Task<StringResponse> WritenDataStream(
