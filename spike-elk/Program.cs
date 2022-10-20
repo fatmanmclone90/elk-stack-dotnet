@@ -26,7 +26,7 @@ var code = $"some code -:+ {DateTime.UtcNow:yyyymmddHHMM}";
 var writeData = await WritenDataStream(
     client,
     dataStreamName,
-    new MyDocument
+    new DFTEvent
     {
         Code = code,
         PartialCode = $"foobar - {DateTime.UtcNow:u}",
@@ -40,7 +40,7 @@ var searchData = await GetData(client, dataStreamName, "code", code);
 
 Console.WriteLine(searchData);
 
-static async Task<IEnumerable<MyDocument>> GetData(
+static async Task<IEnumerable<DFTEvent>> GetData(
     ElasticClient client,
     string dataStream,
     string property,
@@ -48,10 +48,10 @@ static async Task<IEnumerable<MyDocument>> GetData(
 {
     var retryCount = 3;
     var counter = 0;
-    var documents = new List<MyDocument>();
+    var documents = new List<DFTEvent>();
     while (counter < retryCount)
     {
-        var searchResponse = await client.LowLevel.SearchAsync<SearchResponse<MyDocument>>(
+        var searchResponse = await client.LowLevel.SearchAsync<SearchResponse<DFTEvent>>(
             dataStream,
             PostData.Serializable(new
             {
@@ -84,7 +84,7 @@ static async Task<StringResponse> PutDataStreamTemplate(
     bool tryUpdate)
 {
     // investigate ways to do this without NEST
-    var typeMappingDescriptor = new TypeMappingDescriptor<MyDocument>().AutoMap();
+    var typeMappingDescriptor = new TypeMappingDescriptor<DFTEvent>().AutoMap();
 
     var templateExistsResponse = await client.LowLevel.Indices.GetTemplateV2ForAllAsync<StringResponse>(templateName);
 
@@ -184,12 +184,14 @@ static async Task<StringResponse> WritenDataStream(
         PostData.Serializable(payload));
 }
 
-class MyDocument
+class DFTEvent
 {
     [Date(Name = "@timestamp")] public DateTimeOffset Timestamp { get; set; }
 
     // full text search only
     [Keyword] public string? Code { get; set; }
+
+    [Keyword] public string? SomeOtherField { get; set; }
 
     // allows for partial text search
     [Text] public string? PartialCode { get; set; }
