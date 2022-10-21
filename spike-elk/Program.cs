@@ -1,5 +1,7 @@
 ﻿using Elasticsearch.Net;
 using Nest;
+using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
 
@@ -10,9 +12,13 @@ var templateName = $"{indexPattern}-template";
 var lifeCycleName = $"{indexPattern}-lifecycle";
 var dataStreamName = $"{indexPattern}_data_stream";
 
+var indexPatternTitle = $"{dataStreamName}*";
+var indexPatternId = dataStreamName;
+
 var lifeCycle = await CreateLifeCycle(
     client,
-    templateName);
+    lifeCycleName,
+    tryUpdate: true);
 Console.WriteLine(lifeCycle);
 
 var createTemplate = await PutDataStreamTemplate(
@@ -22,6 +28,8 @@ var createTemplate = await PutDataStreamTemplate(
     lifeCycleName,
     tryUpdate: true);
 Console.WriteLine(createTemplate);
+
+await CreateIndexPattern(indexPatternId, indexPatternTitle);
 
 var code = $"some code -:+ {DateTime.UtcNow:yyyymmddHHMM}";
 var dftEvent = new DftEvent
@@ -138,12 +146,13 @@ static async Task<StringResponse> PutDataStreamTemplate(
 
 static async Task<StringResponse> CreateLifeCycle(
     ElasticClient client,
-    string lifeCycleName)
+    string lifeCycleName,
+    bool tryUpdate)
 {
     var lifeCycleExists = await client.LowLevel.IndexLifecycleManagement.GetLifecycleAsync<StringResponse>(lifeCycleName);
 
     // need to decide how frequently we would check the tempalte
-    if (lifeCycleExists.HttpStatusCode == 404)
+    if (lifeCycleExists.HttpStatusCode == 404 || tryUpdate)
     {
         var lifeCycleCreated = await client.LowLevel.IndexLifecycleManagement.PutLifecycleAsync<StringResponse>(
             lifeCycleName,
@@ -199,6 +208,46 @@ static async Task<StringResponse> WritenDataStream(
         PostData.Serializable(payload));
 }
 
+
+static async Task CreateIndexPattern(
+    string indexPatternId,
+    string indexPatternTitle)
+{
+    var httpClient = new HttpClient
+    {
+        BaseAddress = new Uri("http://localhost:5601"),
+    };
+    httpClient.DefaultRequestHeaders.TryAddWithoutValidation("kbn-xsrf", "this is a required header");
+
+    var getResponse = await httpClient
+        .GetAsync($"/api/saved_objects/_find?type=index-pattern&search_fields=title&search={indexPatternTitle}");
+
+    if (getResponse.StatusCode != HttpStatusCode.OK)
+    {
+        throw new Exception(getResponse.StatusCode.ToString());
+    }
+
+    var savedObject = await getResponse.Content.ReadFromJsonAsync<SavedObject>();
+
+    if (savedObject == null || savedObject.Total == 0)
+    {
+        var postResponse = await httpClient.PostAsJsonAsync(
+            $"api/saved_objects/index-pattern/{indexPatternId}?overwrite=false",
+            new
+            {
+                attributes = new
+                {
+                    title = indexPatternTitle,
+                    timeFieldName = "@timestamp",
+                }
+            });
+
+        if (postResponse.StatusCode != HttpStatusCode.OK)
+        {
+            throw new Exception("Failed to create index pattern");
+        }
+    }
+}
 class DftEvent
 {
     [Date(Name = "@timestamp")] public DateTimeOffset Timestamp { get; set; }
@@ -218,4 +267,9 @@ class DftEvent
     [Object] public object? PayloadObject { get; set; }
 
     [Nested] public object? PayloadObjectNested { get; set; }
+}
+
+class SavedObject
+{
+    public int Total { get; set; }
 }
