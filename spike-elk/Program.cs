@@ -1,5 +1,6 @@
 ﻿using Elasticsearch.Net;
 using Nest;
+using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
 
 var client = new ElasticClient(new Uri("http://localhost:9200/"));
@@ -23,16 +24,30 @@ var createTemplate = await PutDataStreamTemplate(
 Console.WriteLine(createTemplate);
 
 var code = $"some code -:+ {DateTime.UtcNow:yyyymmddHHMM}";
+var dftEvent = new DftEvent
+{
+    Code = code,
+    PartialCode = $"foobar - {DateTime.UtcNow:u}",
+    SortOrder = new Random().Next(0, 1000),
+    Timestamp = DateTime.UtcNow,
+};
+
+dftEvent.PayloadString = JsonSerializer.Serialize(dftEvent);
+dftEvent.PayloadObject = new
+{
+    SomeBar = 1,
+    SomeFoo = "yeah"
+};
+dftEvent.PayloadObjectNested = new
+{
+    SomeBar = 1,
+    SomeFoo = "yeah",
+    SomeHad = "nah"
+};
 var writeData = await WritenDataStream(
-    client,
-    dataStreamName,
-    new DFTEvent
-    {
-        Code = code,
-        PartialCode = $"foobar - {DateTime.UtcNow:u}",
-        SortOrder = new Random().Next(0, 1000),
-        Timestamp = DateTime.UtcNow,
-    });
+client,
+dataStreamName,
+dftEvent);
 
 Console.WriteLine(writeData);
 
@@ -40,7 +55,7 @@ var searchData = await GetData(client, dataStreamName, "code", code);
 
 Console.WriteLine(searchData);
 
-static async Task<IEnumerable<DFTEvent>> GetData(
+static async Task<IEnumerable<DftEvent>> GetData(
     ElasticClient client,
     string dataStream,
     string property,
@@ -48,10 +63,10 @@ static async Task<IEnumerable<DFTEvent>> GetData(
 {
     var retryCount = 3;
     var counter = 0;
-    var documents = new List<DFTEvent>();
+    var documents = new List<DftEvent>();
     while (counter < retryCount)
     {
-        var searchResponse = await client.LowLevel.SearchAsync<SearchResponse<DFTEvent>>(
+        var searchResponse = await client.LowLevel.SearchAsync<SearchResponse<DftEvent>>(
             dataStream,
             PostData.Serializable(new
             {
@@ -84,7 +99,7 @@ static async Task<StringResponse> PutDataStreamTemplate(
     bool tryUpdate)
 {
     // investigate ways to do this without NEST
-    var typeMappingDescriptor = new TypeMappingDescriptor<DFTEvent>().AutoMap();
+    var typeMappingDescriptor = new TypeMappingDescriptor<DftEvent>().AutoMap();
 
     var templateExistsResponse = await client.LowLevel.Indices.GetTemplateV2ForAllAsync<StringResponse>(templateName);
 
@@ -184,7 +199,7 @@ static async Task<StringResponse> WritenDataStream(
         PostData.Serializable(payload));
 }
 
-class DFTEvent
+class DftEvent
 {
     [Date(Name = "@timestamp")] public DateTimeOffset Timestamp { get; set; }
 
@@ -196,5 +211,11 @@ class DFTEvent
     // allows for partial text search
     [Text] public string? PartialCode { get; set; }
 
-    public int SortOrder { get; set; }
+    public int? SortOrder { get; set; }
+
+    [Text] public string? PayloadString { get; set; }
+
+    [Object] public object? PayloadObject { get; set; }
+
+    [Nested] public object? PayloadObjectNested { get; set; }
 }
