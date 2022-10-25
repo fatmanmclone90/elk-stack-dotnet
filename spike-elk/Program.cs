@@ -6,7 +6,7 @@ using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
 
 var client = new ElasticClient(new Uri("http://localhost:9200/"));
-
+var shouldUpdate = true;
 var indexPattern = "dft";
 var templateName = $"{indexPattern}-template";
 var lifeCycleName = $"{indexPattern}-lifecycle";
@@ -18,7 +18,7 @@ var indexPatternId = dataStreamName;
 var lifeCycle = await CreateLifeCycle(
     client,
     lifeCycleName,
-    tryUpdate: true);
+    tryUpdate: shouldUpdate);
 Console.WriteLine(lifeCycle);
 
 var createTemplate = await PutDataStreamTemplate(
@@ -26,7 +26,7 @@ var createTemplate = await PutDataStreamTemplate(
     templateName,
     indexPattern,
     lifeCycleName,
-    tryUpdate: true);
+    tryUpdate: shouldUpdate);
 Console.WriteLine(createTemplate);
 
 await CreateIndexPattern(indexPatternId, indexPatternTitle);
@@ -41,17 +41,37 @@ var dftEvent = new DftEvent
 };
 
 dftEvent.PayloadString = JsonSerializer.Serialize(dftEvent);
-dftEvent.PayloadObject = new
+//dftEvent.PayloadObject = new
+//{
+//    SomeBar = 1,
+//    SomeFoo = "yeah"
+//};
+//dftEvent.PayloadObjectNested = new
+//{
+//    SomeBar = 1,
+//    SomeFoo = "yeah",
+//    SomeHad = "nah"
+//};
+dftEvent.BarcodeList = new List<Barcode>
 {
-    SomeBar = 1,
-    SomeFoo = "yeah"
-};
-dftEvent.PayloadObjectNested = new
+    new Barcode
+    {
+        Id = "homer",
+    },
+    new Barcode
+    {
+        Id = "bart",
+    },
+    new Barcode
 {
-    SomeBar = 1,
-    SomeFoo = "yeah",
-    SomeHad = "nah"
+    Id = "bart123",
+}
 };
+dftEvent.BarcodeListString = new List<string>
+{
+    "notbart",
+};
+
 var writeData = await WritenDataStream(
 client,
 dataStreamName,
@@ -250,6 +270,8 @@ static async Task CreateIndexPattern(
 }
 class DftEvent
 {
+    [Keyword(Ignore =true)]public Guid Id { get; set; } = Guid.NewGuid();
+
     [Date(Name = "@timestamp")] public DateTimeOffset Timestamp { get; set; }
 
     // full text search only
@@ -264,12 +286,21 @@ class DftEvent
 
     [Text] public string? PayloadString { get; set; }
 
-    [Object] public object? PayloadObject { get; set; }
+    //[Object] public object? PayloadObject { get; set; }
 
-    [Nested] public object? PayloadObjectNested { get; set; }
+    //[Nested] public object? PayloadObjectNested { get; set; }
+
+    [Nested] public List<Barcode>? BarcodeList { get; set; }
+
+    [Keyword] public List<string>? BarcodeListString { get; set; }
 }
 
 class SavedObject
 {
     public int Total { get; set; }
+}
+
+class Barcode
+{
+    public string? Id { get; set; }
 }
