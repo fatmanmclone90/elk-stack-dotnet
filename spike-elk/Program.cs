@@ -3,9 +3,11 @@ using Nest;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using static System.Net.Mime.MediaTypeNames;
 
-var client = new ElasticClient(new Uri("http://localhost:9200/"));
+var client = new ElasticClient(
+    new ConnectionSettings(new Uri("http://localhost:9200/"))
+    .DefaultFieldNameInferrer(p => p));
+
 var shouldUpdate = true;
 var indexPattern = "dft";
 var templateName = $"{indexPattern}-template";
@@ -31,59 +33,41 @@ Console.WriteLine(createTemplate);
 
 await CreateIndexPattern(indexPatternId, indexPatternTitle);
 
-var code = $"some code -:+ {DateTime.UtcNow:yyyymmddHHMM}";
-var dftEvent = new DftEvent
+var barcode = Guid.NewGuid().ToString();
+var payload = new IndexPayload
 {
-    Code = code,
-    PartialCode = $"foobar - {DateTime.UtcNow:u}",
-    SortOrder = new Random().Next(0, 1000),
     Timestamp = DateTime.UtcNow,
+    Barcode = new List<string> { barcode, Guid.NewGuid().ToString() },
+    CorrelationId = new List<string> { Guid.NewGuid().ToString() },
+    DemandId = new List<string> { Guid.NewGuid().ToString() },
+    IsValid = new List<string> { Guid.NewGuid().ToString() },
+    Location = new List<string> { Guid.NewGuid().ToString() },
+    MessageType = new List<string> { "D6_OrderStatus" },
+    Order = new List<string> { Guid.NewGuid().ToString() },
+    OrderId = new List<string> { Guid.NewGuid().ToString() },
+    PackAreaId = new List<string> { Guid.NewGuid().ToString() },
+    ParcelBarcode = new List<string> { Guid.NewGuid().ToString() },
+    ParcelId = new List<string> { Guid.NewGuid().ToString() },
+    SKU = new List<string> { Guid.NewGuid().ToString() },
+    Status = new List<string> { Guid.NewGuid().ToString() },
+    UniqueKey = new List<string> { "InvalidRequest" },
+    UPOS = new List<string> { Guid.NewGuid().ToString() },
+    UUID = new List<string> { Guid.NewGuid().ToString() },
 };
+payload.Payload = JsonSerializer.Serialize(payload);
 
-dftEvent.PayloadString = JsonSerializer.Serialize(dftEvent);
-//dftEvent.PayloadObject = new
-//{
-//    SomeBar = 1,
-//    SomeFoo = "yeah"
-//};
-//dftEvent.PayloadObjectNested = new
-//{
-//    SomeBar = 1,
-//    SomeFoo = "yeah",
-//    SomeHad = "nah"
-//};
-dftEvent.BarcodeList = new List<Barcode>
-{
-    new Barcode
-    {
-        Id = "homer",
-    },
-    new Barcode
-    {
-        Id = "bart",
-    },
-    new Barcode
-{
-    Id = "bart123",
-}
-};
-dftEvent.BarcodeListString = new List<string>
-{
-    "notbart",
-};
-
-var writeData = await WritenDataStream(
+var writeData = await WriteDataStream(
 client,
 dataStreamName,
-dftEvent);
+payload);
 
 Console.WriteLine(writeData);
 
-var searchData = await GetData(client, dataStreamName, "code", code);
+var searchData = await GetData(client, dataStreamName, "Barcode", barcode);
 
 Console.WriteLine(searchData);
 
-static async Task<IEnumerable<DftEvent>> GetData(
+static async Task<IEnumerable<IndexPayload>> GetData(
     ElasticClient client,
     string dataStream,
     string property,
@@ -91,10 +75,10 @@ static async Task<IEnumerable<DftEvent>> GetData(
 {
     var retryCount = 3;
     var counter = 0;
-    var documents = new List<DftEvent>();
+    var documents = new List<IndexPayload>();
     while (counter < retryCount)
     {
-        var searchResponse = await client.LowLevel.SearchAsync<SearchResponse<DftEvent>>(
+        var searchResponse = await client.LowLevel.SearchAsync<SearchResponse<IndexPayload>>(
             dataStream,
             PostData.Serializable(new
             {
@@ -127,7 +111,7 @@ static async Task<StringResponse> PutDataStreamTemplate(
     bool tryUpdate)
 {
     // investigate ways to do this without NEST
-    var typeMappingDescriptor = new TypeMappingDescriptor<DftEvent>().AutoMap();
+    var typeMappingDescriptor = new TypeMappingDescriptor<IndexPayload>().AutoMap();
 
     var templateExistsResponse = await client.LowLevel.Indices.GetTemplateV2ForAllAsync<StringResponse>(templateName);
 
@@ -218,7 +202,7 @@ static async Task<StringResponse> CreateLifeCycle(
     }
 }
 
-static async Task<StringResponse> WritenDataStream(
+static async Task<StringResponse> WriteDataStream(
     ElasticClient client,
     string dataStreamName,
     Object payload)
@@ -268,39 +252,66 @@ static async Task CreateIndexPattern(
         }
     }
 }
-class DftEvent
+
+class IndexPayload
+
 {
-    [Keyword(Ignore =true)]public Guid Id { get; set; } = Guid.NewGuid();
+    [Date(Name = "@timestamp")] 
+    public DateTimeOffset Timestamp { get; set; }
 
-    [Date(Name = "@timestamp")] public DateTimeOffset Timestamp { get; set; }
+    [Keyword]
+    public List<string>? Barcode { get; set; }
 
-    // full text search only
-    [Keyword] public string? Code { get; set; }
+    [Keyword]
+    public List<string>? CorrelationId { get; set; }
 
-    [Keyword] public string? SomeOtherField { get; set; }
+    [Keyword]
+    public List<string>? DemandId { get; set; }
 
-    // allows for partial text search
-    [Text] public string? PartialCode { get; set; }
+    [Keyword]
+    public List<string>? IsValid { get; set; }
 
-    public int? SortOrder { get; set; }
+    [Keyword]
+    public List<string>? Location { get; set; }
 
-    [Text] public string? PayloadString { get; set; }
+    [Keyword]
+    public List<string>? MessageType { get; set; }
 
-    //[Object] public object? PayloadObject { get; set; }
+    [Keyword]
+    public List<string>? Order { get; set; }
 
-    //[Nested] public object? PayloadObjectNested { get; set; }
+    [Keyword]
+    public List<string>? OrderId { get; set; }
 
-    [Nested] public List<Barcode>? BarcodeList { get; set; }
+    [Keyword]
+    public List<string>? PackAreaId { get; set; }
 
-    [Keyword] public List<string>? BarcodeListString { get; set; }
+    [Keyword]
+    public List<string>? ParcelBarcode { get; set; }
+
+    [Keyword]
+    public List<string>? ParcelId { get; set; }
+
+    [Keyword]
+    public List<string>? SKU { get; set; }
+
+    [Keyword]
+    public List<string>? Status { get; set; }
+
+    [Keyword]
+    public List<string>? UniqueKey { get; set; }
+
+    [Keyword]
+    public List<string>? UPOS { get; set; }
+
+    [Keyword]
+    public List<string>? UUID { get; set; }
+
+    [Text]
+    public string? Payload { get; set; }
 }
 
 class SavedObject
 {
     public int Total { get; set; }
-}
-
-class Barcode
-{
-    public string? Id { get; set; }
 }

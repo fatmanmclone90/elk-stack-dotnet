@@ -7,43 +7,64 @@ var lowlevelClient = new ElasticLowLevelClient(
 var indexPattern = "dft";
 var dataStreamName = $"{indexPattern}_data_stream";
 
-var dftEvent = new DftEvent
+var barcode = Guid.NewGuid().ToString();
+var event1 = new IndexPayload
 {
-    @timestamp = DateTime.UtcNow,
-    Skus = new List<String>
-    {
-        "foo-bar",
-        "bar-foo",
-    }
+    Timestamp = DateTime.UtcNow,
+    Barcode = new List<string> { barcode, Guid.NewGuid().ToString() },
+    CorrelationId = new List<string> { Guid.NewGuid().ToString() },
+    DemandId = new List<string> { Guid.NewGuid().ToString() },
+    IsValid = new List<string> { Guid.NewGuid().ToString() },
+    Location = new List<string> { Guid.NewGuid().ToString() },
+    MessageType = new List<string> { "D6_OrderStatus" },
+    Order = new List<string> { Guid.NewGuid().ToString() },
+    OrderId = new List<string> { Guid.NewGuid().ToString() },
+    PackAreaId = new List<string> { Guid.NewGuid().ToString() },
+    ParcelBarcode = new List<string> { Guid.NewGuid().ToString() },
+    ParcelId = new List<string> { Guid.NewGuid().ToString() },
+    SKU = new List<string> { Guid.NewGuid().ToString() },
+    Status = new List<string> { Guid.NewGuid().ToString() },
+    UniqueKey = new List<string> { "InvalidRequest" },
+    UPOS = new List<string> { Guid.NewGuid().ToString() },
+    UUID = new List<string> { Guid.NewGuid().ToString() },
+};
+var event2 = new IndexPayload
+{
+    Timestamp = DateTime.UtcNow,
+    Barcode = new List<string> { barcode, Guid.NewGuid().ToString() },
+    CorrelationId = new List<string> { Guid.NewGuid().ToString() },
+    DemandId = new List<string> { Guid.NewGuid().ToString() },
+    IsValid = new List<string> { Guid.NewGuid().ToString() },
+    Location = new List<string> { Guid.NewGuid().ToString() },
+    MessageType = new List<string> { "D6_OrderStatus" },
+    Order = new List<string> { Guid.NewGuid().ToString() },
+    OrderId = new List<string> { Guid.NewGuid().ToString() },
+    PackAreaId = new List<string> { Guid.NewGuid().ToString() },
+    ParcelBarcode = new List<string> { Guid.NewGuid().ToString() },
+    ParcelId = new List<string> { Guid.NewGuid().ToString() },
+    SKU = new List<string> { Guid.NewGuid().ToString() },
+    Status = new List<string> { Guid.NewGuid().ToString() },
+    UniqueKey = new List<string> { "InvalidRequest" },
+    UPOS = new List<string> { Guid.NewGuid().ToString() },
+    UUID = new List<string> { Guid.NewGuid().ToString() },
 };
 
-await WriteDataStreamWithId(
+await WriteDataStream(
     lowlevelClient,
     dataStreamName,
-    new[] { dftEvent });
+    new[] { event1, event2 });
 
-static async Task WriteDataStreamNoId(
+static async Task WriteDataStream(
     ElasticLowLevelClient client,
     string dataStreamName,
-    IEnumerable<DftEvent> payloads)
+    IEnumerable<IndexPayload> events)
 {
-    var bulkOperation = JsonConvert.SerializeObject(new { create = new { } });
-
     List<string> operations = new();
-    foreach (var payload in payloads)
+    foreach (var @event in events)
     {
-        operations.Add(bulkOperation);
-        operations.Add(JsonConvert.SerializeObject(payload));
+        operations.Add(JsonConvert.SerializeObject(new { create = new { _id = Guid.NewGuid().ToString() } }));
+        operations.Add(JsonConvert.SerializeObject(@event));
     }
-
-    var notDft = new NotDftEvent
-    {
-        PayloadString = "",
-        Skus = new[] { "123" }.ToList(),
-    };
-
-    operations.Add(bulkOperation);
-    operations.Add(JsonConvert.SerializeObject(notDft));
 
     var response = await client.BulkAsync<StringResponse>(
         dataStreamName,
@@ -63,77 +84,52 @@ static async Task WriteDataStreamNoId(
             var faileItems = bulkIndexResponse.Items.Where(x => x.create?.status != 201);
             foreach (var failedItem in faileItems)
             {
-                Console.WriteLine(failedItem.create?.error?.caused_by?.reason ?? "unknown");
-            }
-        }
-    }
-}
-
-static async Task WriteDataStreamWithId(
-    ElasticLowLevelClient client,
-    string dataStreamName,
-    IEnumerable<DftEvent> payloads)
-{
-    List<string> operations = new();
-    foreach (var payload in payloads)
-    {
-        operations.Add(JsonConvert.SerializeObject(new { create = new { _id = payload.Id } }));
-        operations.Add(JsonConvert.SerializeObject(payload));
-    }
-
-    var notDft = new NotDftEvent
-    {
-        PayloadString = "",
-        Skus = new[] { "123" }.ToList(),
-    };
-
-    operations.Add(JsonConvert.SerializeObject(new { create = new { _id = notDft.Id } }));
-    operations.Add(JsonConvert.SerializeObject(notDft));
-
-    var response = await client.BulkAsync<StringResponse>(
-        dataStreamName,
-        PostData.MultiJson(operations));
-
-    if (!response.Success)
-    {
-        Console.WriteLine(response.OriginalException.Message);
-        throw new Exception("Failed to index");
-    }
-    else
-    {
-        var bulkIndexResponse = JsonConvert.DeserializeObject<BulkIndexResponse>(response.Body);
-
-        if (bulkIndexResponse?.Items?.Any(x => x.create?.status != 201) == true)
-        {
-            var faileItems = bulkIndexResponse.Items.Where(x => x.create?.status != 201);
-            foreach (var failedItem in faileItems)
-            {
-                Console.WriteLine($"{failedItem.create._Id ?? "unknown id"}\t{failedItem.create?.error?.caused_by?.reason ?? "unknown error"}");
+                Console.WriteLine($"{failedItem?.create?._Id ?? "unknown id"}\t{failedItem?.create?.error?.caused_by?.reason ?? "unknown error"}");
             }
         }
     }
 }
 
 
-class NotDftEvent
+class IndexPayload
+
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-
-    public string? PayloadString { get; set; }
-
-    public List<string>? Skus { get; set; }
-}
-
-class DftEvent
-{
-    public Guid Id { get; set; } = Guid.NewGuid();
-
     [JsonProperty("@timestamp")]
-    public DateTimeOffset @timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
 
-    public string? PayloadString { get; set; }
+    public List<string>? Barcode { get; set; }
 
-    public List<string>? Skus { get; set; }
+    public List<string>? CorrelationId { get; set; }
+
+    public List<string>? DemandId { get; set; }
+
+    public List<string>? IsValid { get; set; }
+
+    public List<string>? Location { get; set; }
+
+    public List<string>? MessageType { get; set; }
+
+    public List<string>? Order { get; set; }
+
+    public List<string>? OrderId { get; set; }
+
+    public List<string>? PackAreaId { get; set; }
+
+    public List<string>? ParcelBarcode { get; set; }
+
+    public List<string>? ParcelId { get; set; }
+
+    public List<string>? SKU { get; set; }
+
+    public List<string>? Status { get; set; }
+
+    public List<string>? UniqueKey { get; set; }
+
+    public List<string>? UPOS { get; set; }
+
+    public List<string>? UUID { get; set; }
+
+    public string? Payload { get; set; }
 }
 
 class BulkIndexResponse
