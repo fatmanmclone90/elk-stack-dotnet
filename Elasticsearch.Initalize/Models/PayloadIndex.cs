@@ -1,66 +1,58 @@
 ﻿using Nest;
-using Newtonsoft.Json;
 
 namespace Elasticsearch.Initalize.Models
 {
-    public class PayloadIndex : ICosmosDocument
+    public class PayloadIndex : TimestampModel
     {
-        [JsonProperty("@timestamp")]
-        [Date(Name = "@timestamp")]
-        public DateTimeOffset Timestamp { get; set; }
-
-        [Keyword]
-        public string? CosmosDocumentId { get; set; }
-
-        [Keyword]
+        [Keyword(Name = "Barcode")]
         public List<string>? Barcode { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "CorrelationId")]
         public List<string>? CorrelationId { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "DemandId")]
         public List<string>? DemandId { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "IsValid")]
         public List<string>? IsValid { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "Location")]
         public List<string>? Location { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "MessageType")]
         public List<string>? MessageType { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "Order")]
         public List<string>? Order { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "OrderId")]
         public List<string>? OrderId { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "PackAreaId")]
         public List<string>? PackAreaId { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "ParcelBarcode")]
         public List<string>? ParcelBarcode { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "ParcelId")]
         public List<string>? ParcelId { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "SKU")]
         public List<string>? SKU { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "Status")]
         public List<string>? Status { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "UniqueKey")]
         public List<string>? UniqueKey { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "UPOS")]
         public List<string>? UPOS { get; set; }
 
-        [Keyword]
+        [Keyword(Name = "UUID")]
         public List<string>? UUID { get; set; }
 
-        [Text]
+        [Text(Name = "Payload")]
         public string? Payload { get; set; }
     }
 }

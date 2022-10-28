@@ -69,7 +69,7 @@ namespace Elasticsearch.Initialize
             }
         }
 
-        public async Task CreateTemplate<T>() where T : class, ICosmosDocument
+        public async Task CreateTemplate<T>() where T : TimestampModel
         {
             var mappings = this.CreatMappings<T>();
             var response = await client.Indices.PutTemplateV2ForAllAsync<StringResponse>(
@@ -101,7 +101,7 @@ namespace Elasticsearch.Initialize
             }
         }
 
-        public async Task BulkIndex<T>(IEnumerable<T> events) where T : class, ICosmosDocument
+        public async Task BulkIndex<T>(IEnumerable<T> events) where T : TimestampModel
         {
             List<string> operations = new();
             foreach (var @event in events)
@@ -123,13 +123,13 @@ namespace Elasticsearch.Initialize
             {
                 var bulkIndexResponse = JsonConvert.DeserializeObject<BulkIndexResponse>(response.Body);
 
-                if (bulkIndexResponse?.Items?.Any(x => x.create?.status != 201) == true)
+                if (bulkIndexResponse?.Items?.Any(x => x.Create?.Status != 201) == true)
                 {
-                    var faileItems = bulkIndexResponse.Items.Where(x => x.create?.status != 201);
+                    var faileItems = bulkIndexResponse.Items.Where(x => x.Create?.Status != 201);
                     var errors = new List<string>();
                     foreach (var failedItem in faileItems)
                     {
-                        errors.Add($"{failedItem?.create?._Id ?? "unknown id"}\t{failedItem?.create?.error?.caused_by?.reason ?? "unknown error"}");
+                        errors.Add($"{failedItem?.Create?.Id ?? "unknown id"}\t{failedItem?.Create?.Error?.CausedBy?.Reason ?? "unknown error"}");
                     }
                     
                     throw new InvalidDataException($"Failed to Bulk Index {errors}");
@@ -139,10 +139,10 @@ namespace Elasticsearch.Initialize
 
         // Hackery, still using NEST
         // TODO find another way to serialize the mappings
-        private JObject CreatMappings<T>() where T : class, ICosmosDocument
+        private JObject CreatMappings<T>() where T : TimestampModel
         {
             var typeMappingDescriptor = new TypeMappingDescriptor<T>().AutoMap();
-            var mappingsJson = new ElasticClient().SourceSerializer.SerializeToString(typeMappingDescriptor);
+            var mappingsJson = new ElasticClient().SourceSerializer.SerializeToString(typeMappingDescriptor, SerializationFormatting.None);
 
             return JObject.Parse(mappingsJson);
         }

@@ -1,36 +1,47 @@
-﻿namespace Elasticsearch.Initalize.Models
+﻿using Newtonsoft.Json;
+
+namespace Elasticsearch.Initalize.Models
 {
     public class BulkIndexResponse
     {
-        public string? errors { get; set; }
+        [JsonProperty("errors")]
+        public string? Errors { get; set; }
 
+        [JsonProperty("items")]
         public Item[]? Items { get; set; }
     }
 
     // TODO switch to json property attributes
     public class Item
     {
-        public Create? create { get; set; }
+        [JsonProperty("create")]
+        public Create? Create { get; set; }
     }
 
     public class Create
     {
-        public string? _Id { get; set; }
+        [JsonProperty("_id")]
+        public string? Id { get; set; }
 
-        public int status { get; set; }
+        [JsonProperty("status")]
+        public int Status { get; set; }
 
-        public Error? error { get; set; }
+        [JsonProperty("error")]
+        public Error? Error { get; set; }
     }
 
     public class Error
     {
-        public CausedBy? caused_by { get; set; }
+        [JsonProperty("caused_by")]
+        public CausedBy? CausedBy { get; set; }
 
-        public string? reason { get; set; }
+        [JsonProperty("reason")]
+        public string? Reason { get; set; }
     }
 
     public class CausedBy
     {
-        public string? reason { get; set; }
+        [JsonProperty("reason")]
+        public string? Reason { get; set; }
     }
 }
