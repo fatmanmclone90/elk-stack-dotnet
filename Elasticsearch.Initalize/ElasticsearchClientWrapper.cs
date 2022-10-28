@@ -81,7 +81,7 @@ namespace Elasticsearch.Initialize
                         data_stream = new { },
                         template = new
                         {
-                            mappings = mappings,
+                            mappings,
                             settings = new
                             {
                                 index = new
@@ -138,6 +138,7 @@ namespace Elasticsearch.Initialize
         }
 
         // Hackery, still using NEST
+        // TODO find another way to serialize the mappings
         private JObject CreatMappings<T>() where T : class, ICosmosDocument
         {
             var typeMappingDescriptor = new TypeMappingDescriptor<T>().AutoMap();

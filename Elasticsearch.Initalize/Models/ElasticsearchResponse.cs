@@ -7,6 +7,7 @@
         public Item[]? Items { get; set; }
     }
 
+    // TODO switch to json property attributes
     public class Item
     {
         public Create? create { get; set; }
