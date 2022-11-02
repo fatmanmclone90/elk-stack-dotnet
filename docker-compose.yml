@@ -1,26 +1,60 @@
-version: "3.0"
-services:
-  elasticsearch:
-    container_name: es-container
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.11.0
-    environment:
-      - xpack.security.enabled=false
-      - "discovery.type=single-node"
-    networks:
-      - es-net
-    ports:
-      - 9200:9200
-  kibana:
-    container_name: kb-container
-    image: docker.elastic.co/kibana/kibana:7.11.0
-    environment:
-      - ELASTICSEARCH_HOSTS=http://es-container:9200
-    networks:
-      - es-net
-    depends_on:
-      - elasticsearch
-    ports:
-      - 5601:5601
+version: "3.4"
+# Taken from https://stackoverflow.com/questions/72837669/docker-compose-elastic-stack-with-xpack-security-kibana-doesnt-connect
+
 networks:
-  es-net:
-    driver: bridge
+    elk_stack:
+        driver: bridge
+services:
+    elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+        container_name: elasticsearch-container
+        environment:
+            - node.name=elastic01
+            - discovery.type=single-node
+            - xpack.security.enabled=true
+            - xpack.security.authc.api_key.enabled=true
+            - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+            #- logger.level=WARN
+            #- logger.org.elasticsearch.discovery=WARN
+        networks:
+            - elk_stack
+        ports:
+            - 9200:9200
+
+    kibana:
+        image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+        container_name: kibana
+        environment:
+            - ELASTICSEARCH_URL=http://elasticsearch:9200
+            - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+            - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME}
+            - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+            #- logger.level=WARN
+        networks:
+            - elk_stack
+        depends_on:
+            - elasticsearch
+        links:
+            - elasticsearch  
+        ports:
+            - 5601:5601
+    # Hard Coded for index names and elastic URL etc
+    init:
+        image: ubuntu:22.04
+        networks:
+            - elk_stack
+        depends_on:
+            - elasticsearch
+        links:
+            - elasticsearch 
+        volumes:
+          - ./keys:/keys
+        command: >
+            bash -c '
+                apt-get update; apt-get install curl -y
+                until $$(curl --output /dev/null --silent --fail -XPOST -u "elastic:password" http://elasticsearch:9200/_security/api_key -H "Content-Type: application/json" -d "{  \"name\": \"dft_data_Stream_api_key\",  \"expiration\": \"1d\",  \"role_descriptors\": {    \"dft_data_stream\": {      \"cluster\": [        \"manage_ilm\",        \"manage_index_templates\"      ],      \"index\": [        {          \"names\": [            \"dft_data_stream*\"          ],          \"privileges\": [            \"read\",            \"create\",            \"create_index\",            \"index\",            \"write\"          ]        }      ]    }  }}"); do
+                    printf '.'
+                    sleep 5
+                done
+                curl -XGET -u "elastic:password" "http://elasticsearch:9200/_security/api_key" -o ./keys/security_keys.json
+            '   

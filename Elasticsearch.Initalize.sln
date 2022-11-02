@@ -5,10 +5,12 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FBD53259-6AB1-4760-B4C7-B829F07749A1}"
 	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
 		docker-compose.yml = docker-compose.yml
+		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elasticsearch.Initalize", "Elasticsearch.Initalize\Elasticsearch.Initalize.csproj", "{2A4C681A-0BF2-43B0-8F97-4CA260DDD2B3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Elasticsearch.Initalize", "Elasticsearch.Initalize\Elasticsearch.Initalize.csproj", "{2A4C681A-0BF2-43B0-8F97-4CA260DDD2B3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

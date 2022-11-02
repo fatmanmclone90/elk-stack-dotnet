@@ -2,8 +2,17 @@
 using Elasticsearch.Initalize.Models;
 using Elasticsearch.Initialize;
 
-var elasticSearchWrapper = new ElasticsearchClientWrapper("http://localhost:9200", "dft_data_stream");
-var kibanaWrapper = new KibanaClientWrapper("http://localhost:5601", "dft_data_stream");
+var elasticSearchWrapper = new ElasticsearchClientWrapper(
+    "http://localhost:9200", 
+    dataStreamName: "dft_data_stream",
+    apiKeyId: "cbonNIQBQdopLl3cnEm7",
+    apiKeyValue: "O2MyoaE9S2OfPMRt82uEwQ");
+
+var kibanaWrapper = new KibanaClientWrapper(
+    "http://localhost:5601", 
+    "dft_data_stream", 
+    userName: "elastic", 
+    password: "password");
 
 var barcode = Guid.NewGuid().ToString();
 var event1 = new PayloadIndex
@@ -57,3 +66,5 @@ await elasticSearchWrapper.CreateTemplate<PayloadIndex>();
 await kibanaWrapper.CreateIndexPattern("@timestamp");
 
 await elasticSearchWrapper.BulkIndex<PayloadIndex>(new[] { event1, event2 });
+
+Console.WriteLine("SUCCESS");

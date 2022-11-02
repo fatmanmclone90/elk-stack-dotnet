@@ -9,13 +9,22 @@ namespace Elasticsearch.Initalize
         private readonly HttpClient httpClient;
         private readonly string dataStreamName;
 
-        public KibanaClientWrapper(string kibanaUrl, string dataStreamName)
+        public KibanaClientWrapper(
+            string kibanaUrl, 
+            string dataStreamName,
+            string? userName,
+            string? password)
         {
             this.httpClient = new HttpClient
             {
                 BaseAddress = new Uri(kibanaUrl),
             };
             httpClient.DefaultRequestHeaders.TryAddWithoutValidation("kbn-xsrf", "this is a required header");
+
+            if(userName != null && password != null)
+            {
+                this.httpClient.DefaultRequestHeaders.Add("Authorization", BasicAuth(userName, password));
+            }
 
             this.dataStreamName = dataStreamName;
         }
@@ -53,5 +62,10 @@ namespace Elasticsearch.Initalize
                 }
             }
         }
+
+        private string BasicAuth(string userName, string password) => $"BASIC {Base64Encode($"{userName}:{password}")}";
+
+        private static string Base64Encode(string plainText) =>
+            Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(plainText));
     }
 }

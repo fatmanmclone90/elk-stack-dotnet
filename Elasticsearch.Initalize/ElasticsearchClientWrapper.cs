@@ -15,10 +15,21 @@ namespace Elasticsearch.Initialize
 
         public ElasticsearchClientWrapper(
             string elasticSearchUrl,
-            string dataStreamName)
+            string dataStreamName,
+            string? apiKeyId,
+            string? apiKeyValue = null)
         {
-            this.client = new ElasticLowLevelClient(
-                new ConnectionConfiguration(new Uri(elasticSearchUrl)));
+            if (apiKeyId == null || apiKeyValue == null)
+            {
+                this.client = new ElasticLowLevelClient(
+                    new ConnectionConfiguration(new Uri(elasticSearchUrl)));
+            }
+            else
+            {
+                this.client = new ElasticLowLevelClient(
+                    new ConnectionConfiguration(new Uri(elasticSearchUrl))
+                   .ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(apiKeyId, apiKeyValue)));
+            }
 
             this.dataStreamName = dataStreamName;
             this.templateName = $"{dataStreamName}-template";
@@ -131,7 +142,7 @@ namespace Elasticsearch.Initialize
                     {
                         errors.Add($"{failedItem?.Create?.Id ?? "unknown id"}\t{failedItem?.Create?.Error?.CausedBy?.Reason ?? "unknown error"}");
                     }
-                    
+
                     throw new InvalidDataException($"Failed to Bulk Index {errors}");
                 }
             }
