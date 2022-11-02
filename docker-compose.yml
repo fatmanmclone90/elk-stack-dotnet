@@ -52,9 +52,9 @@ services:
         command: >
             bash -c '
                 apt-get update; apt-get install curl -y
-                until $$(curl --output /dev/null --silent --fail -XPOST -u "elastic:password" http://elasticsearch:9200/_security/api_key -H "Content-Type: application/json" -d "{  \"name\": \"dft_data_Stream_api_key\",  \"expiration\": \"1d\",  \"role_descriptors\": {    \"dft_data_stream\": {      \"cluster\": [        \"manage_ilm\",        \"manage_index_templates\"      ],      \"index\": [        {          \"names\": [            \"dft_data_stream*\"          ],          \"privileges\": [            \"read\",            \"create\",            \"create_index\",            \"index\",            \"write\"          ]        }      ]    }  }}"); do
+                until $$(curl -s -S -f -o ./keys/create_security_keys.json -XPOST -u "elastic:password" http://elasticsearch:9200/_security/api_key -H "Content-Type: application/json" -d "{  \"name\": \"dft_data_Stream_api_key\",  \"expiration\": \"1d\",  \"role_descriptors\": {    \"dft_data_stream\": {      \"cluster\": [        \"manage_ilm\",        \"manage_index_templates\"      ],      \"index\": [        {          \"names\": [            \"dft_data_stream*\"          ],          \"privileges\": [            \"read\",            \"create\",            \"create_index\",            \"index\",            \"write\"          ]        }      ]    }  }}"); do
                     printf '.'
                     sleep 5
                 done
-                curl -XGET -u "elastic:password" "http://elasticsearch:9200/_security/api_key" -o ./keys/security_keys.json
-            '   
+                curl -XGET -u "elastic:password" "http://elasticsearch:9200/_security/api_key" -o ./keys/get_security_keys.json
+            '

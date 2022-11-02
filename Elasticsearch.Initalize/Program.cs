@@ -1,18 +1,39 @@
 ﻿using Elasticsearch.Initalize;
 using Elasticsearch.Initalize.Models;
 using Elasticsearch.Initialize;
+using Newtonsoft.Json;
+
+var apiKeyFilePath = @".\keys\create_security_keys.json";
+if (!File.Exists(apiKeyFilePath))
+{
+    throw new InvalidDataException("No API Keys found, ensure cluster is running");
+}
+
+string text = File.ReadAllText(@".\keys\create_security_keys.json");
+var apiKey = JsonConvert.DeserializeObject<ApiKeyResponse>(text);
+
+if (apiKey == null || apiKey.Id == null || apiKey.ApiKeyValue == null)
+{
+    throw new InvalidDataException("No API Keys found, ensure cluster is running");
+}
+
+// load .env file used for docker compose
+DotNetEnv.Env.TraversePath().Load();
+
+var elasticUsername = Environment.GetEnvironmentVariable("ELASTIC_USERNAME");
+var elasticPassword = Environment.GetEnvironmentVariable("ELASTIC_PASSWORD");
 
 var elasticSearchWrapper = new ElasticsearchClientWrapper(
-    "http://localhost:9200", 
+    "http://localhost:9200",
     dataStreamName: "dft_data_stream",
-    apiKeyId: "cbonNIQBQdopLl3cnEm7",
-    apiKeyValue: "O2MyoaE9S2OfPMRt82uEwQ");
+    apiKey.Id,
+    apiKey.ApiKeyValue);
 
 var kibanaWrapper = new KibanaClientWrapper(
-    "http://localhost:5601", 
-    "dft_data_stream", 
-    userName: "elastic", 
-    password: "password");
+    "http://localhost:5601",
+    "dft_data_stream",
+    elasticUsername,
+    elasticPassword);
 
 var barcode = Guid.NewGuid().ToString();
 var event1 = new PayloadIndex
